@@ -175,22 +175,6 @@ function TableRow:deductionCell(deduction)
 	return self
 end
 
-function TableHeaderRow:cell(header)
-	local additionalClass = header.additionalClass
-
-	local innerDiv = wrapInDiv(header.text) :addClass('border-color-grey')
-		:addClass('content')
-
-	local outerDiv = mw.html.create('div') :addClass('divCell')
-		:addClass('diagonal-header-div-cell')
-	if additionalClass then
-		outerDiv:addClass(additionalClass)
-	end
-	outerDiv:node(innerDiv)
-	table.insert(self.cells, outerDiv)
-	return self
-end
-
 function TableHeaderRow:create()
 	-- fixed headers
 	local headers = {{
