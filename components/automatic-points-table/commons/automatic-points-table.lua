@@ -96,11 +96,11 @@ end
 function AutomaticPointsTable:parseInput(args)
 	local positionBackgrounds = self:parsePositionBackgroundData(args)
 	local tournaments = self:parseTournaments(args)
-	local teams = self:parseTeams(args, #tournaments)
+  local resolveRedirect = Logic.readBool(args.resolveRedirect)
+	local teams = self:parseTeams(args, #tournaments, resolveRedirect)
 	local minified = Logic.readBool(args.minified)
 	local limit = tonumber(args.limit) or #teams
 	local lpdbName = args.lpdbName or mw.title.getCurrentTitle().text
-	local resolveRedirect = Logic.readBool(args.resolveRedirect)
 	return {
 		positionBackgrounds = positionBackgrounds,
 		tournaments = tournaments,
@@ -108,7 +108,6 @@ function AutomaticPointsTable:parseInput(args)
 		shouldTableBeMinified = minified,
 		limit = limit,
 		lpdbName = lpdbName,
-		resolveRedirect = resolveRedirect,
 	}
 end
 
@@ -130,11 +129,11 @@ function AutomaticPointsTable:parseTournaments(args)
 	return tournaments
 end
 
-function AutomaticPointsTable:parseTeams(args, tournamentCount)
+function AutomaticPointsTable:parseTeams(args, tournamentCount, resolveRedirect)
 	local teams = {}
 	for _, team in Table.iter.pairsByPrefix(args, 'team') do
 		local parsedTeam = Json.parse(team)
-		parsedTeam.aliases = self:parseAliases(parsedTeam, tournamentCount)
+		parsedTeam.aliases = self:parseAliases(parsedTeam, tournamentCount, resolveRedirect)
 		parsedTeam.deductions = self:parseDeductions(parsedTeam, tournamentCount)
 		parsedTeam.manualPoints = self:parseManualPoints(parsedTeam, tournamentCount)
 		parsedTeam.tiebreakerPoints = tonumber(parsedTeam.tiebreaker_points) or 0
@@ -149,10 +148,16 @@ end
 --- the team's results & points
 function AutomaticPointsTable:parseAliases(team, tournamentCount)
 	local aliases = {}
-	local lastAlias = team.name
+  local resolveRedirect = function (x) return x end
+  if self.parsedInput.resolveRedirect then
+    resolveRedirect = function (x)
+      return mw.ext.TeamLiquidIntegration.resolve_redirect(x)
+    end
+  end
+	local lastAlias = resolveRedirect(team.name)
 	for index = 1, tournamentCount do
 		if String.isNotEmpty(team['alias' .. index]) then
-			lastAlias = team['alias' .. index]
+			lastAlias = resolveRedirect(team['alias' .. index])
 		end
 		aliases[index] = lastAlias
 	end
@@ -192,17 +197,11 @@ end
 
 function AutomaticPointsTable:generateReverseAliases(teams, tournaments)
 	local reverseAliases = {}
-	local resolveRedirect = self.parsedInput.resolveRedirect
 	for tournamentIndex = 1, #tournaments do
 		reverseAliases[tournamentIndex] = {}
 		Table.iter.forEachIndexed(teams,
 			function(index, team)
-				local alias
-				if resolveRedirect then
-					alias = mw.ext.TeamLiquidIntegration.resolve_redirect(team.aliases[tournamentIndex])
-				else
-					alias = team.aliases[tournamentIndex]
-				end
+				local alias = team.aliases[tournamentIndex]
 				reverseAliases[tournamentIndex][alias] = index
 			end
 		)
