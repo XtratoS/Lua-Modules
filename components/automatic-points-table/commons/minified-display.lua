@@ -128,21 +128,6 @@ function TableRow:nameCell(team)
 	return self
 end
 
-function TableHeaderRow:cell(header)
-	local additionalClass = header.additionalClass
-
-	local innerDiv = wrapInDiv(header.text) :addClass('border-color-grey')
-		:addClass('content')
-
-	local outerDiv = mw.html.create('div') :addClass('divCell')
-	if additionalClass then
-		outerDiv:addClass(additionalClass)
-	end
-	outerDiv:node(innerDiv)
-	table.insert(self.cells, outerDiv)
-	return self
-end
-
 function TableHeaderRow:create()
 	-- fixed headers
 	local headers = {{
