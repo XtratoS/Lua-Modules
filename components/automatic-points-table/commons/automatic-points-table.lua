@@ -93,6 +93,18 @@ function AutomaticPointsTable:storeLPDB(pointsData)
 	end)
 end
 
+function AutomaticPointsTable:generateAliasParsingFunction(resolveRedirect)
+  if resolveRedirect then
+    return function (x)
+      return mw.ext.TeamLiquidIntegration.resolve_redirect(x)
+    end
+  else
+    return function(x)
+      return mw.language.getContentLanguage():ucfirst(x)
+    end
+  end
+end
+
 function AutomaticPointsTable:parseInput(args)
 	local positionBackgrounds = self:parsePositionBackgroundData(args)
 	local tournaments = self:parseTournaments(args)
@@ -131,9 +143,10 @@ end
 
 function AutomaticPointsTable:parseTeams(args, tournamentCount, resolveRedirect)
 	local teams = {}
+  local parseAlias = generateAliasParsingFunction(resolveRedirect)
 	for _, team in Table.iter.pairsByPrefix(args, 'team') do
 		local parsedTeam = Json.parse(team)
-		parsedTeam.aliases = self:parseAliases(parsedTeam, tournamentCount, resolveRedirect)
+		parsedTeam.aliases = self:parseAliases(parsedTeam, tournamentCount, parseAlias)
 		parsedTeam.deductions = self:parseDeductions(parsedTeam, tournamentCount)
 		parsedTeam.manualPoints = self:parseManualPoints(parsedTeam, tournamentCount)
 		parsedTeam.tiebreakerPoints = tonumber(parsedTeam.tiebreaker_points) or 0
@@ -146,18 +159,13 @@ end
 --- Parses the team aliases, used in cases where a team is picked up by an org or changed
 --- name in some of the tournaments, in which case aliases are required to correctly query
 --- the team's results & points
-function AutomaticPointsTable:parseAliases(team, tournamentCount)
+function AutomaticPointsTable:parseAliases(team, tournamentCount, parseAlias)
 	local aliases = {}
   local resolveRedirect = function (x) return x end
-  if self.parsedInput.resolveRedirect then
-    resolveRedirect = function (x)
-      return mw.ext.TeamLiquidIntegration.resolve_redirect(x)
-    end
-  end
-	local lastAlias = resolveRedirect(team.name)
+	local lastAlias = parseAlias(team.name)
 	for index = 1, tournamentCount do
 		if String.isNotEmpty(team['alias' .. index]) then
-			lastAlias = resolveRedirect(team['alias' .. index])
+			lastAlias = parseAlias(team['alias' .. index])
 		end
 		aliases[index] = lastAlias
 	end
